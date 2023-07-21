@@ -1,7 +1,10 @@
 import { Helmet } from 'react-helmet-async';
 import { filter } from 'lodash';
 import { sentenceCase } from 'change-case';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useQuery, useMutation, useQueryClient   } from 'react-query'
+import toast, { Toaster } from 'react-hot-toast';
 // @mui
 import {
   Card,
@@ -21,6 +24,10 @@ import {
   IconButton,
   TableContainer,
   TablePagination,
+  Box,
+  Modal,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 // components
 import Label from '../components/label';
@@ -35,11 +42,56 @@ import USERLIST from '../_mock/user';
 
 const TABLE_HEAD = [
   { id: 'name', label: 'Name', alignRight: false },
-  { id: 'company', label: 'Company', alignRight: false },
+  { id: 'email', label: 'Email', alignRight: false },
   { id: 'role', label: 'Role', alignRight: false },
-  { id: 'isVerified', label: 'Verified', alignRight: false },
-  { id: 'status', label: 'Status', alignRight: false },
+  // { id: 'isEmailVerifieds', label: 'Verified', alignRight: false },
+  { id: 'walletAddress', label: 'Wallet Address', alignRight: false },
   { id: '' },
+];
+
+// ----------------------------------------------------------------------
+
+const token = JSON.parse(localStorage.getItem('userData'));
+const tokenAccess = token?.tokens?.access?.token
+const userdata = {
+  name: '',
+  email: '',
+  password: '',
+  walletAddress: '',
+  role: 'admin'
+}
+
+const style = {
+  position: 'absolute',
+  borderRadius: '15px',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: 400,
+  bgcolor: 'background.paper',
+  border: '2px #000',
+  boxShadow: "5px 5px",
+  p: 4,
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'center',
+  alignItem: 'center',
+  
+};
+
+const roles = [
+  {
+    value: 'admin',
+    label: 'admin',
+  },
+  {
+    value: 'halalCertificationIssuer',
+    label: 'halal certification issuer',
+  },
+  {
+    value: 'butcher',
+    label: 'butcher',
+  }
 ];
 
 // ----------------------------------------------------------------------
@@ -61,8 +113,8 @@ function getComparator(order, orderBy) {
 }
 
 function applySortFilter(array, comparator, query) {
-  const stabilizedThis = array.map((el, index) => [el, index]);
-  stabilizedThis.sort((a, b) => {
+  const stabilizedThis = array?.map((el, index) => [el, index]);
+  stabilizedThis?.sort((a, b) => {
     const order = comparator(a[0], b[0]);
     if (order !== 0) return order;
     return a[1] - b[1];
@@ -70,13 +122,21 @@ function applySortFilter(array, comparator, query) {
   if (query) {
     return filter(array, (_user) => _user.name.toLowerCase().indexOf(query.toLowerCase()) !== -1);
   }
-  return stabilizedThis.map((el) => el[0]);
+  return stabilizedThis?.map((el) => el[0]);
 }
 
 export default function UserPage() {
+  const queryClient = useQueryClient();
+
+  const [indexData, setIndexData] = useState();
+
   const [open, setOpen] = useState(null);
 
+  const [createUser, setCreateUser] = useState(userdata)
+
   const [page, setPage] = useState(0);
+
+  const [openModal, setOpenModal] = useState(false);
 
   const [order, setOrder] = useState('asc');
 
@@ -87,6 +147,16 @@ export default function UserPage() {
   const [filterName, setFilterName] = useState('');
 
   const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleCreateUser = (e) => {
+    const { name, value } = e.target;
+    setCreateUser(prevState => ({
+        ...prevState,
+        [name]: value
+    }));
+  };
 
   const handleOpenMenu = (event) => {
     setOpen(event.currentTarget);
@@ -104,7 +174,7 @@ export default function UserPage() {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = USERLIST.map((n) => n.name);
+      const newSelecteds = data?.data?.users.map((n) => n.name);
       setSelected(newSelecteds);
       return;
     }
@@ -140,14 +210,109 @@ export default function UserPage() {
     setFilterName(event.target.value);
   };
 
-  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - USERLIST.length) : 0;
+  const getUser = async () => {
+    const response = await axios.get(`${process.env.REACT_APP_API_URL}/users?page=1&size=`,
+    {
+      headers: {
+        Authorization: `Bearer ${tokenAccess}`, // Set the Authorization header
+      },
+    });
+    return response
+  };
 
-  const filteredUsers = applySortFilter(USERLIST, getComparator(order, orderBy), filterName);
+  const { isLoading, isError, data, error } = useQuery('getUser', getUser)
 
-  const isNotFound = !filteredUsers.length && !!filterName;
+  if (isError){
+    toast(error)
+  }
+
+  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - data?.data?.users.length) : 0;
+
+  const filteredUsers = applySortFilter(data?.data?.users, getComparator(order, orderBy), filterName);
+
+  const isNotFound = !filteredUsers?.length && !!filterName;
+
+  const { mutate: postUser } = useMutation(
+    async () => {
+      toast.loading('Waiting...');
+      const res = await axios.post(`${process.env.REACT_APP_API_URL}/auth/register`, {
+        email: createUser.email,
+        password: createUser.password,
+        name: createUser.name,
+        role: createUser.role,
+        walletAddress: createUser.walletAddress
+      })
+
+      return res
+    },
+    {
+      onSuccess: (res) => {
+        toast.dismiss();
+        toast.success('Successfully Create User!');
+        queryClient.invalidateQueries({ queryKey: ['getUser'] })
+        setOpenModal(false)
+        setCreateUser(userdata)
+      },
+      onError: (err) => {
+        toast.dismiss();
+        toast.error(err.response.data.message )
+      },
+    }
+  );
+
+  const { mutate: deleteUser } = useMutation(
+    async () => {
+      toast.loading('Waiting...');
+      const res = await axios.delete(`${process.env.REACT_APP_API_URL}/users/${indexData.id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${tokenAccess}`, // Set the Authorization header
+        },
+      })
+      return res
+    },
+    {
+      onSuccess: (res) => {
+        toast.dismiss();
+        toast.success('Successfully delete');
+        queryClient.invalidateQueries({ queryKey: ['getUser'] })
+        handleCloseMenu(false)
+      },
+      onError: (err) => {
+        toast.dismiss();
+        toast.error('error!');
+      },
+    }
+  );
 
   return (
     <>
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        gutter={8}
+        containerClassName=""
+        containerStyle={{}}
+        toastOptions={{
+          // Define default options
+          className: '',
+          duration: 5000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+
+          // Default options for specific types
+          success: {
+            duration: 3000,
+            theme: {
+              primary: 'green',
+              secondary: 'black',
+            },
+          },
+        }}
+      />
+      
       <Helmet>
         <title> User | Minimal UI </title>
       </Helmet>
@@ -157,13 +322,13 @@ export default function UserPage() {
           <Typography variant="h4" gutterBottom>
             User
           </Typography>
-          <Button variant="contained" startIcon={<Iconify icon="eva:plus-fill" />}>
+          <Button onClick={() => setOpenModal(true)} variant="contained" startIcon={<Iconify icon="eva:plus-fill" />}>
             New User
           </Button>
         </Stack>
 
         <Card>
-          <UserListToolbar numSelected={selected.length} filterName={filterName} onFilterName={handleFilterByName} />
+          <UserListToolbar numSelected={selected.length} filterName={filterName} onFilterName={handleFilterByName} plcHolder={"Search email..."} />
 
           <Scrollbar>
             <TableContainer sx={{ minWidth: 800 }}>
@@ -172,42 +337,52 @@ export default function UserPage() {
                   order={order}
                   orderBy={orderBy}
                   headLabel={TABLE_HEAD}
-                  rowCount={USERLIST.length}
+                  rowCount={data?.data?.users.length}
                   numSelected={selected.length}
                   onRequestSort={handleRequestSort}
                   onSelectAllClick={handleSelectAllClick}
                 />
                 <TableBody>
-                  {filteredUsers.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
-                    const { id, name, role, status, company, avatarUrl, isVerified } = row;
+                  {filteredUsers?.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
+                    const { id, name, email, role, walletAddress} = row;
                     const selectedUser = selected.indexOf(name) !== -1;
 
                     return (
                       <TableRow hover key={id} tabIndex={-1} role="checkbox" selected={selectedUser}>
                         <TableCell padding="checkbox">
-                          <Checkbox checked={selectedUser} onChange={(event) => handleClick(event, name)} />
-                        </TableCell>
+                          {/* <Checkbox checked={selectedUser} onChange={(event) => handleClick(event, name)} /> */}
+                        </TableCell> 
 
-                        <TableCell component="th" scope="row" padding="none">
-                          <Stack direction="row" alignItems="center" spacing={2}>
-                            <Avatar alt={name} src={avatarUrl} />
+                        <TableCell >
+                          {/* <Stack direction="row" alignItems="center" spacing={2}> */}
+                            {/* <Avatar variant="rounded" alt={name} src={avatarUrl} sx={{ width: 72, height: 72 }} /> */}
                             <Typography variant="subtitle2" noWrap>
                               {name}
                             </Typography>
-                          </Stack>
+                          {/* </Stack> */}
                         </TableCell>
 
-                        <TableCell align="left">{company}</TableCell>
+                        <TableCell align="left">{email}</TableCell>
 
                         <TableCell align="left">{role}</TableCell>
 
-                        <TableCell align="left">{isVerified ? 'Yes' : 'No'}</TableCell>
-
                         <TableCell align="left">
-                          <Label color={(status === 'banned' && 'error') || 'success'}>{sentenceCase(status)}</Label>
+                          <Label color={'success'}>
+                            {walletAddress}
+                          </Label>
                         </TableCell>
 
-                        <TableCell align="right">
+                        {/* <TableCell align="left">
+                          <Label color={(isEmailVerified === false && 'error') || 'success'}>
+                            {isEmailVerified ? sentenceCase(String('Yes')) : sentenceCase(String('No')) }
+                          </Label>
+                        </TableCell> */}
+
+                        {/* <TableCell align="left">
+                          <Label color={(isEmailVerified === 'banned' && 'error') || 'success'}>{sentenceCase(isEmailVerified)}</Label>
+                        </TableCell> */}
+
+                        <TableCell align="right" onClick={()=>{setIndexData(row)}}>
                           <IconButton size="large" color="inherit" onClick={handleOpenMenu}>
                             <Iconify icon={'eva:more-vertical-fill'} />
                           </IconButton>
@@ -252,7 +427,7 @@ export default function UserPage() {
           <TablePagination
             rowsPerPageOptions={[5, 10, 25]}
             component="div"
-            count={USERLIST.length}
+            count={data?.data?.users.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
@@ -279,16 +454,118 @@ export default function UserPage() {
           },
         }}
       >
-        <MenuItem>
+        {/* <MenuItem>
           <Iconify icon={'eva:edit-fill'} sx={{ mr: 2 }} />
           Edit
-        </MenuItem>
+        </MenuItem> */}
 
-        <MenuItem sx={{ color: 'error.main' }}>
+        <MenuItem sx={{ color: 'error.main' }} onClick={deleteUser}>
           <Iconify icon={'eva:trash-2-outline'} sx={{ mr: 2 }} />
           Delete
         </MenuItem>
       </Popover>
+
+      <Modal
+        keepMounted
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        aria-labelledby="keep-mounted-modal-title"
+        aria-describedby="keep-mounted-modal-description"
+      >
+        <Box sx={style}>
+          <Typography id="keep-mounted-modal-title" variant="h6" component="h2" sx={{display: 'flex', justifyContent: 'center'}}>
+            Create User
+          </Typography>
+
+          <Typography id="keep-mounted-modal-description" sx={{ mt: 2, marginBottom:'25px', display: 'flex', justifyContent: 'center' }}>
+            Create a new user
+          </Typography>
+
+          <TextField value={createUser.name} name='name' onChange={handleCreateUser} fullWidth label="name" sx={{  marginBottom:'15px'}} />
+          <TextField value={createUser.email} name='email' onChange={handleCreateUser} fullWidth label="Email" sx={{  marginBottom:'15px'}} />
+          {/* <TextField value={createUser.password} name='password' onChange={handleCreateUser} fullWidth label="Password" sx={{  marginBottom:'15px'}} /> */}
+          
+          <TextField
+            name="password"
+            label="Password"
+            onChange={handleCreateUser}
+            type={showPassword ? 'text' : 'password'}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                    <Iconify icon={showPassword ? 'eva:eye-fill' : 'eva:eye-off-fill'} />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{  marginBottom:'15px'}}
+          />
+
+          <TextField value={createUser.walletAddress} name='walletAddress' onChange={handleCreateUser} fullWidth label="Wallet Address" sx={{  marginBottom:'15px'}} />
+
+          <TextField
+          id="outlined-select-currency"
+          select
+          label="Role"
+          defaultValue={'admin'}
+          helperText="Please select your role"
+          sx={{  marginBottom:'15px'}}
+          name='role'
+          value={createUser.role} 
+          onChange={handleCreateUser} 
+          >
+            {roles?.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          
+          {/* <Avatar 
+            src={createUser.imageUrl}
+            variant="rounded" 
+            sx={{  marginBottom:'25px', width: '40%', height: '30%',
+            left: '30%', }}
+          /> */}
+
+          {/* {imgUpload ?
+              <Avatar 
+              src={imgUpload} 
+              variant="rounded" 
+              sx={{  marginBottom:'25px', width: '40%', height: '30%',
+              left: '30%', }}
+              />
+            
+            :
+            <Button
+              variant="contained"
+              component="label"
+              fullWidth
+              sx={{ marginBottom:'25px' }}
+            >
+              Import Image
+              <input
+                type="file"
+                hidden
+                onChange={handleUpload}
+              />
+            </Button>
+          } */}
+
+          <Button
+            variant="text"
+            component="label"
+            fullWidth
+            sx={{  mt: '20px'}}
+            onClick={postUser}
+            // onClose={() => setOpenModal(false)}
+          >
+            Create user
+          </Button>
+          
+        </Box>
+      </Modal>
     </>
   );
 }

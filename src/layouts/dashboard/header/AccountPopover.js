@@ -2,22 +2,24 @@ import { useState } from 'react';
 // @mui
 import { alpha } from '@mui/material/styles';
 import { Box, Divider, Typography, Stack, MenuItem, Avatar, IconButton, Popover } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 // mocks_
 import account from '../../../_mock/account';
 
 // ----------------------------------------------------------------------
+const token = JSON.parse(localStorage.getItem('userData'));
 
 const MENU_OPTIONS = [
   {
-    label: 'Home',
+    label: 'Dashboard',
     icon: 'eva:home-fill',
   },
+  // {
+  //   label: 'Profile',
+  //   icon: 'eva:person-fill',
+  // },
   {
-    label: 'Profile',
-    icon: 'eva:person-fill',
-  },
-  {
-    label: 'Settings',
+    label: 'User',
     icon: 'eva:settings-2-fill',
   },
 ];
@@ -25,8 +27,9 @@ const MENU_OPTIONS = [
 // ----------------------------------------------------------------------
 
 export default function AccountPopover() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(null);
-
+  
   const handleOpen = (event) => {
     setOpen(event.currentTarget);
   };
@@ -34,6 +37,12 @@ export default function AccountPopover() {
   const handleClose = () => {
     setOpen(null);
   };
+
+  const logout = () => {
+    handleClose()
+    navigate('/login', { replace: true });
+    localStorage.removeItem('userData');
+  }
 
   return (
     <>
@@ -78,10 +87,10 @@ export default function AccountPopover() {
       >
         <Box sx={{ my: 1.5, px: 2.5 }}>
           <Typography variant="subtitle2" noWrap>
-            {account.displayName}
+            {token?.user?.name}
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-            {account.email}
+            {token?.user?.email}
           </Typography>
         </Box>
 
@@ -97,7 +106,7 @@ export default function AccountPopover() {
 
         <Divider sx={{ borderStyle: 'dashed' }} />
 
-        <MenuItem onClick={handleClose} sx={{ m: 1 }}>
+        <MenuItem onClick={logout} sx={{ m: 1 }}>
           Logout
         </MenuItem>
       </Popover>
