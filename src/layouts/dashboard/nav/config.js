@@ -19,7 +19,17 @@ const navConfig = [
   {
     title: 'slaughtering',
     path: '/dashboard/slaughtering',
-    icon: icon('ic_user'),
+    icon: icon('ic_folder'),
+  },
+  {
+    title: 'animal',
+    path: '/dashboard/animal',
+    icon: icon('ic_folder'),
+  },
+  {
+    title: 'meat',
+    path: '/dashboard/meat',
+    icon: icon('ic_folder'),
   },
   // {
   //   title: 'product',

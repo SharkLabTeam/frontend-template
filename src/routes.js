@@ -10,6 +10,8 @@ import Page404 from './pages/Page404';
 import ProductsPage from './pages/ProductsPage';
 import DashboardAppPage from './pages/DashboardAppPage';
 import SlaughteringPage from './pages/SlaughteringPage';
+import AnimalPage from './pages/AnimalPage';
+import MeatPage from './pages/MeatPage';
 
 // ----------------------------------------------------------------------
 
@@ -47,7 +49,9 @@ export default function Router() {
         { path: 'user', element: <ProtectedRoute element={<UserPage />} /> },
         { path: 'products', element: <ProtectedRoute element={<ProductsPage /> }/> },
         { path: 'blog', element: <ProtectedRoute element={<BlogPage />} /> },
-        { path: 'slaughtering', element: <ProtectedRoute element={<SlaughteringPage />} />}
+        { path: 'slaughtering', element: <ProtectedRoute element={<SlaughteringPage />} />},
+        { path: 'animal', element: <ProtectedRoute element={<AnimalPage />} />},
+        { path: 'meat', element: <ProtectedRoute element={<MeatPage />} />}
       ],
     },
     {

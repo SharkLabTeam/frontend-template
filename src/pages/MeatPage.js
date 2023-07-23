@@ -43,10 +43,8 @@ import USERLIST from '../_mock/user';
 
 const TABLE_HEAD = [
   { label: 'No', alignRight: false },
-  { id: 'slaughteringName', label: 'Slaughtering Name', alignRight: false },
-  { id: 'slaughteringVideo', label: 'Slaughtering Video', alignRight: false },
-  { id: 'meatId', label: 'Meat Id', alignRight: false },
-  { id: 'isVerify', label: 'Is Verify', alignRight: false },
+  { id: 'meatName', label: 'Meat Name', alignRight: false },
+  { id: 'animalId', label: 'Animal Id', alignRight: false },
   { id: 'createdAt', label: 'Created At', alignRight: false },
   { id: 'updateAt', label: 'Update At', alignRight: false },
   {}
@@ -56,10 +54,9 @@ const TABLE_HEAD = [
 
 const token = JSON.parse(localStorage.getItem('userData'));
 const tokenAccess = token?.tokens?.access?.token
-const slaughteringdata = {
-  slaughteringName: '',
-  meatId: '',
-  slaughteringVideo: ''
+const meatdata = {
+  meatName: '',
+  animalId: '',
 }
 
 const style = {
@@ -106,19 +103,19 @@ function applySortFilter(array, comparator, query) {
     return a[1] - b[1];
   });
   if (query) {
-    return filter(array, (_slaughtering) => _slaughtering.name.toLowerCase().indexOf(query.toLowerCase()) !== -1);
+    return filter(array, (_meat) => _meat.name.toLowerCase().indexOf(query.toLowerCase()) !== -1);
   }
   return stabilizedThis?.map((el) => el[0]);
 }
 
-export default function SlaughteringPage() {
+export default function MeatPage() {
   const queryClient = useQueryClient();
 
   const [indexData, setIndexData] = useState();
 
   const [open, setOpen] = useState(null);
 
-  const [createSlaughtering, setCreateSlaughtering] = useState(slaughteringdata)
+  const [createMeat, setCreateMeat] = useState(meatdata)
 
   const [page, setPage] = useState(0);
 
@@ -136,11 +133,11 @@ export default function SlaughteringPage() {
 
   const [showPassword, setShowPassword] = useState(false);
   
-  const [meatDropdown, setMeatDropdown] = useState([])
+  const [animalDropdown, setAnimalDropdown] = useState([])
 
-  const handleCreateSlaughtering = (e) => {
+  const handleCreateMeat = (e) => {
     const { name, value } = e.target;
-    setCreateSlaughtering(prevState => ({
+    setCreateMeat(prevState => ({
         ...prevState,
         [name]: value
     }));
@@ -162,7 +159,7 @@ export default function SlaughteringPage() {
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelecteds = data?.data?.slaughterings.map((n) => n.name);
+      const newSelecteds = data?.data?.meats.map((n) => n.name);
       setSelected(newSelecteds);
       return;
     }
@@ -198,8 +195,8 @@ export default function SlaughteringPage() {
     setFilterName(event.target.value);
   };
 
-  const getSlaughtering = async () => {
-    const response = await axios.get(`${process.env.REACT_APP_API_URL}/slaughtering`,
+  const getMeat = async () => {
+    const response = await axios.get(`${process.env.REACT_APP_API_URL}/meats`,
     {
       headers: {
         Authorization: `Bearer ${tokenAccess}`, // Set the Authorization header
@@ -208,44 +205,43 @@ export default function SlaughteringPage() {
     return response
   };
 
-  const getMeat = async () => {
-    const {data} = await axios.get(`${process.env.REACT_APP_API_URL}/meats`,
+  const getAnimal = async () => {
+    const {data} = await axios.get(`${process.env.REACT_APP_API_URL}/animals`,
     {
       headers: {
         Authorization: `Bearer ${tokenAccess}`, // Set the Authorization header
       },
     });
     
-    const temp = data?.meats.map(meat => {
+    const temp = data?.animals.map(animal => {
         return {
-            value: meat.id,
-            label: meat.meatName
+            value: animal.id,
+            label: animal.animalName
         }
     })
 
-    setMeatDropdown(temp)
+    setAnimalDropdown(temp)
   };
 
-  const { isLoading, isError, data, error } = useQuery('getSlaughtering', getSlaughtering)
+  const { isLoading, isError, data, error } = useQuery('getMeat', getMeat)
 
   if (isError){
     toast(error)
   }
 
-  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - data?.data?.slaughterings.length) : 0;
+  const emptyRows = page > 0 ? Math.max(0, (1 + page) * rowsPerPage - data?.data?.meats.length) : 0;
 
-  const filteredSlaughterings = applySortFilter(data?.data?.slaughterings, getComparator(order, orderBy), filterName);
+  const filteredMeats = applySortFilter(data?.data?.meats, getComparator(order, orderBy), filterName);
 
-  const isNotFound = !filteredSlaughterings?.length && !!filterName;
+  const isNotFound = !filteredMeats?.length && !!filterName;
 
-  const { mutate: postSlaughtering } = useMutation(
+  const { mutate: postMeat } = useMutation(
     async () => {
       toast.loading('Waiting...');
-      const res = await axios.post(`${process.env.REACT_APP_API_URL}/slaughtering`, 
+      const res = await axios.post(`${process.env.REACT_APP_API_URL}/meats`, 
       {
-        slaughteringName: createSlaughtering.slaughteringName,
-        meatId: createSlaughtering.meatId,
-        slaughteringVideo: createSlaughtering.slaughteringVideo
+        meatName: createMeat.meatName,
+        animalId: createMeat.animalId
       },
       {
         headers: {
@@ -259,10 +255,10 @@ export default function SlaughteringPage() {
     {
       onSuccess: (res) => {
         toast.dismiss();
-        toast.success('Successfully Create Slaughtering!');
-        queryClient.invalidateQueries({ queryKey: ['getSlaughtering'] })
+        toast.success('Successfully Create Meat!');
+        queryClient.invalidateQueries({ queryKey: ['getMeat'] })
         setOpenModal(false)
-        setCreateSlaughtering(slaughteringdata)
+        setCreateMeat(meatdata)
       },
       onError: (err) => {
         toast.dismiss();
@@ -271,10 +267,10 @@ export default function SlaughteringPage() {
     }
   );
 
-  const { mutate: deleteSlaughtering } = useMutation(
+  const { mutate: deleteMeat } = useMutation(
     async () => {
       toast.loading('Waiting...');
-      const res = await axios.delete(`${process.env.REACT_APP_API_URL}/slaughtering/${indexData.id}`,
+      const res = await axios.delete(`${process.env.REACT_APP_API_URL}/meats/${indexData.id}`,
       {
         headers: {
           Authorization: `Bearer ${tokenAccess}`, // Set the Authorization header
@@ -286,7 +282,7 @@ export default function SlaughteringPage() {
       onSuccess: (res) => {
         toast.dismiss();
         toast.success('Successfully delete');
-        queryClient.invalidateQueries({ queryKey: ['getSlaughtering'] })
+        queryClient.invalidateQueries({ queryKey: ['getMeat'] })
         handleCloseMenu(false)
       },
       onError: (err) => {
@@ -298,7 +294,7 @@ export default function SlaughteringPage() {
 
 
   useEffect(() => {
-    getMeat()
+    getAnimal()
   }, [])
   
 
@@ -331,21 +327,21 @@ export default function SlaughteringPage() {
       />
       
       <Helmet>
-        <title> Slaughtering | Minimal UI </title>
+        <title> Meat | Minimal UI </title>
       </Helmet>
 
       <Container>
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={5}>
           <Typography variant="h4" gutterBottom>
-            Slaughtering
+            Meat
           </Typography>
           <Button onClick={() => setOpenModal(true)} variant="contained" startIcon={<Iconify icon="eva:plus-fill" />}>
-            New Slaughtering
+            New Meat
           </Button>
         </Stack>
 
         <Card>
-          <UserListToolbar numSelected={selected.length} filterName={filterName} onFilterName={handleFilterByName} placeHolder={"Search slaughtering..."} />
+          <UserListToolbar numSelected={selected.length} filterName={filterName} onFilterName={handleFilterByName} placeHolder={"Search meat..."} />
 
           <Scrollbar>
             <TableContainer sx={{ minWidth: 800 }}>
@@ -354,15 +350,15 @@ export default function SlaughteringPage() {
                   order={order}
                   orderBy={orderBy}
                   headLabel={TABLE_HEAD}
-                  rowCount={data?.data?.slaughterings.length}
+                  rowCount={data?.data?.meats.length}
                   numSelected={selected.length}
                   onRequestSort={handleRequestSort}
                   onSelectAllClick={handleSelectAllClick}
                 />
                 <TableBody>
-                  {filteredSlaughterings?.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => {
-                    const { id, slaughteringName, slaughteringVideo, isVerify, meatId, createdAt, updateAt} = row;
-                    const selectedSlaughtering = selected.indexOf(slaughteringName) !== -1;
+                  {filteredMeats?.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => {
+                    const { id, meatName, animalId, createdAt, updateAt} = row;
+                    const selectedMeat = selected.indexOf(meatName) !== -1;
 
                     return (
                       <TableRow hover key={id} tabIndex={-1} >
@@ -374,20 +370,12 @@ export default function SlaughteringPage() {
                           {/* <Stack direction="row" alignItems="center" spacing={2}> */}
                             {/* <Avatar variant="rounded" alt={name} src={avatarUrl} sx={{ width: 72, height: 72 }} /> */}
                             <Typography variant="subtitle2" noWrap>
-                              {slaughteringName}
+                              {meatName}
                             </Typography>
                           {/* </Stack> */}
                         </TableCell>
 
-                        <TableCell align="left">{slaughteringVideo}</TableCell>
-                        <TableCell align="left">{meatId}</TableCell>
-
-                        <TableCell align="left">
-                          {
-                            isVerify ? 
-                            <Label color={'success'}>Approved </Label> : <Label color={'warning'}>Pending</Label>
-                          }
-                        </TableCell>
+                        <TableCell align="left">{animalId}</TableCell>
 
                         <TableCell align="left">{new Date(createdAt).toUTCString()}</TableCell>
 
@@ -438,7 +426,7 @@ export default function SlaughteringPage() {
           <TablePagination
             rowsPerPageOptions={[1, 5, 10, 25]}
             component="div"
-            count={data?.data?.slaughterings.length}
+            count={data?.data?.meats.length}
             rowsPerPage={rowsPerPage}
             page={page}
             onPageChange={handleChangePage}
@@ -470,7 +458,7 @@ export default function SlaughteringPage() {
           Edit
         </MenuItem> */}
 
-        <MenuItem sx={{ color: 'error.main' }} onClick={deleteSlaughtering}>
+        <MenuItem sx={{ color: 'error.main' }} onClick={deleteMeat}>
           <Iconify icon={'eva:trash-2-outline'} sx={{ mr: 2 }} />
           Delete
         </MenuItem>
@@ -485,42 +473,40 @@ export default function SlaughteringPage() {
       >
         <Box sx={style}>
           <Typography id="keep-mounted-modal-title" variant="h6" component="h2" sx={{display: 'flex', justifyContent: 'center'}}>
-            Create Slaughtering
+            Create Meat
           </Typography>
 
           <Typography id="keep-mounted-modal-description" sx={{ mt: 2, marginBottom:'25px', display: 'flex', justifyContent: 'center' }}>
-            Create a new slaughtering
+            Create a new meat
           </Typography>
 
-          <TextField value={createSlaughtering.slaughteringName} name='slaughteringName' onChange={handleCreateSlaughtering} fullWidth label="Slaughtering Name" sx={{  marginBottom:'15px'}} />
+          <TextField value={createMeat.meatName} name='meatName' onChange={handleCreateMeat} fullWidth label="Meat Name" sx={{  marginBottom:'15px'}} />
           <TextField
           id="outlined-select-currency"
           select
-          label="Meat"
-          helperText="Please select meat"
+          label="Animal"
+          helperText="Please select animal"
           sx={{  marginBottom:'15px'}}
-          name='meatId'
-          value={createSlaughtering.meatId} 
-          onChange={handleCreateSlaughtering} 
+          name='animalId'
+          value={createMeat.animalId} 
+          onChange={handleCreateMeat} 
           >
-            {meatDropdown?.map((option) => (
+            {animalDropdown?.map((option) => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
               </MenuItem>
             ))}
           </TextField>
 
-          <TextField value={createSlaughtering.slaughteringVideo} name='slaughteringVideo' onChange={handleCreateSlaughtering} fullWidth label="Slaughtering Video" sx={{  marginBottom:'15px'}} />
-
           <Button
             variant="text"
             component="label"
             fullWidth
             sx={{  mt: '20px'}}
-            onClick={postSlaughtering}
+            onClick={postMeat}
             // onClose={() => setOpenModal(false)}
           >
-            Create slaughtering
+            Create meat
           </Button>
           
         </Box>

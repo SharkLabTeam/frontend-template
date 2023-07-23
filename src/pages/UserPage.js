@@ -41,6 +41,7 @@ import USERLIST from '../_mock/user';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD = [
+  { label: 'No', alignRight: false },
   { id: 'name', label: 'Name', alignRight: false },
   { id: 'email', label: 'Email', alignRight: false },
   { id: 'role', label: 'Role', alignRight: false },
@@ -211,7 +212,7 @@ export default function UserPage() {
   };
 
   const getUser = async () => {
-    const response = await axios.get(`${process.env.REACT_APP_API_URL}/users?page=1&size=`,
+    const response = await axios.get(`${process.env.REACT_APP_API_URL}/users`,
     {
       headers: {
         Authorization: `Bearer ${tokenAccess}`, // Set the Authorization header
@@ -328,7 +329,7 @@ export default function UserPage() {
         </Stack>
 
         <Card>
-          <UserListToolbar numSelected={selected.length} filterName={filterName} onFilterName={handleFilterByName} plcHolder={"Search email..."} />
+          <UserListToolbar numSelected={selected.length} filterName={filterName} onFilterName={handleFilterByName} placeHolder={"Search username..."} />
 
           <Scrollbar>
             <TableContainer sx={{ minWidth: 800 }}>
@@ -343,14 +344,14 @@ export default function UserPage() {
                   onSelectAllClick={handleSelectAllClick}
                 />
                 <TableBody>
-                  {filteredUsers?.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => {
+                  {filteredUsers?.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row, index) => {
                     const { id, name, email, role, walletAddress} = row;
                     const selectedUser = selected.indexOf(name) !== -1;
 
                     return (
                       <TableRow hover key={id} tabIndex={-1} role="checkbox" selected={selectedUser}>
-                        <TableCell padding="checkbox">
-                          {/* <Checkbox checked={selectedUser} onChange={(event) => handleClick(event, name)} /> */}
+                        <TableCell>
+                          {index + 1}
                         </TableCell> 
 
                         <TableCell >
@@ -425,7 +426,7 @@ export default function UserPage() {
           </Scrollbar>
 
           <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
+            rowsPerPageOptions={[1, 5, 10, 25]}
             component="div"
             count={data?.data?.users.length}
             rowsPerPage={rowsPerPage}
